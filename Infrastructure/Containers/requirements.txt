@@ -1,0 +1,28 @@
+# ===============================
+# REQUIREMENTS.txt - DÉPENDANCES PYTHON
+# ===============================
+
+# Génération de données
+pandas==2.1.4
+faker==20.1.0
+
+# Azure SDK
+azure-storage-blob==12.19.0
+azure-identity==1.15.0
+azure-keyvault-secrets==4.7.0
+
+# Utilitaires
+python-dotenv==1.0.0
+requests==2.31.0
+pydantic==2.5.2
+
+# Logging et monitoring
+structlog==23.2.0
+azure-monitor-opentelemetry==1.2.0
+
+# Processing
+numpy==1.26.2
+pytz==2023.3
+
+# Optionnel : pour debug local
+ipython==8.18.1

@@ -1,0 +1,463 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "dataFactoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Nom de Data Factory"
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Nom du Storage Account"
+      }
+    },
+    "containerImageUri": {
+      "type": "string",
+      "metadata": {
+        "description": "URI de l'image container (ex: myacr.azurecr.io/ficp-generator:latest)"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Région de déploiement"
+      }
+    },
+    "environment": {
+      "type": "string",
+      "allowedValues": ["test", "prod"],
+      "defaultValue": "test",
+      "metadata": {
+        "description": "Environnement de déploiement"
+      }
+    }
+  },
+  "variables": {
+    "storageLinkedServiceName": "AzureDataLakeStorage_FICP",
+    "containerLinkedServiceName": "AzureContainerInstance_FICP",
+    "synapseLinkedServiceName": "AzureSynapseAnalytics_FICP",
+    "dailyPipelineName": "FICP_Daily_Ingestion",
+    "transformPipelineName": "FICP_Transform_to_Silver",
+    "aggregatePipelineName": "FICP_Aggregate_to_Gold",
+    "triggerName": "FICP_Daily_Trigger"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('dataFactoryName'), '/', variables('storageLinkedServiceName'))]",
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[concat('https://', parameters('storageAccountName'), '.dfs.core.windows.net')]"
+        },
+        "connectVia": {
+          "referenceName": "AutoResolveIntegrationRuntime",
+          "type": "IntegrationRuntimeReference"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('dataFactoryName'), '/DS_ADLS_CSV_Raw')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('dataFactoryName'), variables('storageLinkedServiceName'))]"
+      ],
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[variables('storageLinkedServiceName')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "container": {
+            "type": "string",
+            "defaultValue": "bronze"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          }
+        },
+        "type": "DelimitedText",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileName": {
+              "value": "@dataset().filename",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directory",
+              "type": "Expression"
+            },
+            "fileSystem": {
+              "value": "@dataset().container",
+              "type": "Expression"
+            }
+          },
+          "columnDelimiter": ",",
+          "escapeChar": "\\",
+          "firstRowAsHeader": true,
+          "quoteChar": "\""
+        },
+        "schema": []
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('dataFactoryName'), '/DS_ADLS_Parquet_Silver')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/linkedServices', parameters('dataFactoryName'), variables('storageLinkedServiceName'))]"
+      ],
+      "properties": {
+        "linkedServiceName": {
+          "referenceName": "[variables('storageLinkedServiceName')]",
+          "type": "LinkedServiceReference"
+        },
+        "parameters": {
+          "container": {
+            "type": "string",
+            "defaultValue": "silver"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          }
+        },
+        "type": "Parquet",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileName": {
+              "value": "@dataset().filename",
+              "type": "Expression"
+            },
+            "folderPath": {
+              "value": "@dataset().directory",
+              "type": "Expression"
+            },
+            "fileSystem": {
+              "value": "@dataset().container",
+              "type": "Expression"
+            }
+          },
+          "compressionCodec": "snappy"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('dataFactoryName'), '/', variables('dailyPipelineName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('dataFactoryName'), 'DS_ADLS_CSV_Raw')]",
+        "[resourceId('Microsoft.DataFactory/factories/datasets', parameters('dataFactoryName'), 'DS_ADLS_Parquet_Silver')]"
+      ],
+      "properties": {
+        "activities": [
+          {
+            "name": "Generate_FICP_Data",
+            "type": "Custom",
+            "typeProperties": {
+              "command": "python /home/ficp/scripts/generate_and_upload.py --volume 300",
+              "resourceLinkedService": {
+                "referenceName": "[variables('containerLinkedServiceName')]",
+                "type": "LinkedServiceReference"
+              }
+            },
+            "policy": {
+              "timeout": "0.01:00:00",
+              "retry": 2,
+              "retryIntervalInSeconds": 30
+            }
+          },
+          {
+            "name": "Transform_Consultations_to_Parquet",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "Generate_FICP_Data",
+                "dependencyConditions": ["Succeeded"]
+              }
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                }
+              },
+              "enableStaging": false
+            },
+            "inputs": [
+              {
+                "referenceName": "DS_ADLS_CSV_Raw",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "bronze",
+                  "directory": {
+                    "value": "@concat('raw/ficp/consultations/', formatDateTime(utcnow(), 'yyyy-MM-dd'))",
+                    "type": "Expression"
+                  },
+                  "filename": {
+                    "value": "@concat('ficp_consultation_', formatDateTime(utcnow(), 'yyyy-MM-dd'), '.csv')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DS_ADLS_Parquet_Silver",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "silver",
+                  "directory": {
+                    "value": "@concat('processed/ficp/consultations/', formatDateTime(utcnow(), 'yyyy/MM'))",
+                    "type": "Expression"
+                  },
+                  "filename": {
+                    "value": "@concat('consultations_', formatDateTime(utcnow(), 'yyyy-MM-dd'), '.parquet')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Transform_Courriers_to_Parquet",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "Generate_FICP_Data",
+                "dependencyConditions": ["Succeeded"]
+              }
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                }
+              },
+              "enableStaging": false
+            },
+            "inputs": [
+              {
+                "referenceName": "DS_ADLS_CSV_Raw",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "bronze",
+                  "directory": {
+                    "value": "@concat('raw/ficp/courriers/', formatDateTime(utcnow(), 'yyyy-MM-dd'))",
+                    "type": "Expression"
+                  },
+                  "filename": {
+                    "value": "@concat('ficp_courrier_', formatDateTime(utcnow(), 'yyyy-MM-dd'), '.csv')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DS_ADLS_Parquet_Silver",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "silver",
+                  "directory": {
+                    "value": "@concat('processed/ficp/courriers/', formatDateTime(utcnow(), 'yyyy/MM'))",
+                    "type": "Expression"
+                  },
+                  "filename": {
+                    "value": "@concat('courriers_', formatDateTime(utcnow(), 'yyyy-MM-dd'), '.parquet')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Transform_Radiations_to_Parquet",
+            "type": "Copy",
+            "dependsOn": [
+              {
+                "activity": "Generate_FICP_Data",
+                "dependencyConditions": ["Succeeded"]
+              }
+            ],
+            "typeProperties": {
+              "source": {
+                "type": "DelimitedTextSource",
+                "storeSettings": {
+                  "type": "AzureBlobFSReadSettings",
+                  "recursive": false,
+                  "enablePartitionDiscovery": false
+                },
+                "formatSettings": {
+                  "type": "DelimitedTextReadSettings"
+                }
+              },
+              "sink": {
+                "type": "ParquetSink",
+                "storeSettings": {
+                  "type": "AzureBlobFSWriteSettings"
+                }
+              },
+              "enableStaging": false
+            },
+            "inputs": [
+              {
+                "referenceName": "DS_ADLS_CSV_Raw",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "bronze",
+                  "directory": {
+                    "value": "@concat('raw/ficp/radiations/', formatDateTime(utcnow(), 'yyyy-MM-dd'))",
+                    "type": "Expression"
+                  },
+                  "filename": {
+                    "value": "@concat('ficp_radiation_', formatDateTime(utcnow(), 'yyyy-MM-dd'), '.csv')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ],
+            "outputs": [
+              {
+                "referenceName": "DS_ADLS_Parquet_Silver",
+                "type": "DatasetReference",
+                "parameters": {
+                  "container": "silver",
+                  "directory": {
+                    "value": "@concat('processed/ficp/radiations/', formatDateTime(utcnow(), 'yyyy/MM'))",
+                    "type": "Expression"
+                  },
+                  "filename": {
+                    "value": "@concat('radiations_', formatDateTime(utcnow(), 'yyyy-MM-dd'), '.parquet')",
+                    "type": "Expression"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Send_Success_Notification",
+            "type": "WebActivity",
+            "dependsOn": [
+              {
+                "activity": "Transform_Consultations_to_Parquet",
+                "dependencyConditions": ["Succeeded"]
+              },
+              {
+                "activity": "Transform_Courriers_to_Parquet",
+                "dependencyConditions": ["Succeeded"]
+              },
+              {
+                "activity": "Transform_Radiations_to_Parquet",
+                "dependencyConditions": ["Succeeded"]
+              }
+            ],
+            "typeProperties": {
+              "url": "https://httpbin.org/post",
+              "method": "POST",
+              "headers": {
+                "Content-Type": "application/json"
+              },
+              "body": {
+                "message": "Pipeline FICP quotidien terminé avec succès",
+                "timestamp": "@utcnow()",
+                "environment": "[parameters('environment')]",
+                "status": "SUCCESS"
+              }
+            }
+          }
+        ],
+        "parameters": {
+          "TriggerTime": {
+            "type": "string",
+            "defaultValue": "@utcnow()"
+          }
+        },
+        "annotations": ["FICP", "Daily", "Ingestion"]
+      }
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/triggers",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('dataFactoryName'), '/', variables('triggerName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.DataFactory/factories/pipelines', parameters('dataFactoryName'), variables('dailyPipelineName'))]"
+      ],
+      "properties": {
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "startTime": "2025-01-01T06:00:00Z",
+            "timeZone": "Central European Standard Time"
+          }
+        },
+        "pipelines": [
+          {
+            "pipelineReference": {
+              "referenceName": "[variables('dailyPipelineName')]",
+              "type": "PipelineReference"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "dataFactoryName": {
+      "type": "string",
+      "value": "[parameters('dataFactoryName')]"
+    },
+    "dailyPipelineName": {
+      "type": "string",
+      "value": "[variables('dailyPipelineName')]"
+    },
+    "triggerName": {
+      "type": "string",
+      "value": "[variables('triggerName')]"
+    },
+    "nextRunTime": {
+      "type": "string",
+      "value": "Tous les jours à 06:00 CET"
+    }
+  }
+}
