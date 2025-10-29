@@ -12,7 +12,7 @@ agences = ["SOF", "CA", "LCL"]
 fic_types = ["FIC1", "FIC2", "FIC3", "FIC4"]
 canaux = ["Agence", "Web", "Téléphone"]
 
-# Générer 10 clients fictifs
+# Générer 1000 clients fictifs
 clients = []
 for _ in range(1000):
     date_naissance = faker.date_of_birth(minimum_age=18, maximum_age=60)
