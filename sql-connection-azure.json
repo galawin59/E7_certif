@@ -1,0 +1,9 @@
+{
+  "ServerName": "sql-server-ficp-5647.database.windows.net",
+  "DatabaseName": "db-ficp-datawarehouse",
+  "AdminLogin": "ficpadmin",
+  "AdminPassword": "FicpDataWarehouse2025!",
+  "ConnectionString": "Server=tcp:sql-server-ficp-5647.database.windows.net,1433;Initial Catalog=db-ficp-datawarehouse;User ID=ficpadmin;Password=FicpDataWarehouse2025!;Encrypt=True;Connection Timeout=30;",
+  "CreationDate": "2025-10-29 15:05:00",
+  "Status": "Created"
+}

@@ -1,0 +1,44 @@
+﻿{
+    "activities":  [
+                       {
+                           "outputs":  [
+                                           {
+                                               "referenceName":  "Dataset_FICP_Processed",
+                                               "type":  "DatasetReference"
+                                           }
+                                       ],
+                           "inputs":  [
+                                          {
+                                              "referenceName":  "Dataset_FICP_Source",
+                                              "type":  "DatasetReference"
+                                          }
+                                      ],
+                           "typeProperties":  {
+                                                  "sink":  {
+                                                               "formatSettings":  {
+                                                                                      "fileExtension":  ".csv",
+                                                                                      "type":  "DelimitedTextWriteSettings",
+                                                                                      "quoteAllText":  true
+                                                                                  },
+                                                               "type":  "DelimitedTextSink",
+                                                               "storeSettings":  {
+                                                                                     "type":  "AzureBlobStorageWriteSettings"
+                                                                                 }
+                                                           },
+                                                  "source":  {
+                                                                 "formatSettings":  {
+                                                                                        "type":  "DelimitedTextReadSettings"
+                                                                                    },
+                                                                 "type":  "DelimitedTextSource",
+                                                                 "storeSettings":  {
+                                                                                       "wildcardFileName":  "ficp_*.csv",
+                                                                                       "recursive":  true,
+                                                                                       "type":  "AzureBlobStorageReadSettings"
+                                                                                   }
+                                                             }
+                                              },
+                           "name":  "Copy_FICP_Data",
+                           "type":  "Copy"
+                       }
+                   ]
+}

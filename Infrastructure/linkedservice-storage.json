@@ -1,0 +1,6 @@
+﻿{
+    "typeProperties":  {
+                           "connectionString":  "DefaultEndpointsProtocol=https;AccountName=ficpstorageaccount;AccountKey=i1yTHVvOH4Fzqbl08TlvQPW0V0XIBSOlQOlkcuHxGTRoJ9H+Rcd3hUaCQxPZYCiMc2xtjtbZbmRn+ASt7Xm7AQ==;EndpointSuffix=core.windows.net"
+                       },
+    "type":  "AzureBlobStorage"
+}
