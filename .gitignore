@@ -7,6 +7,16 @@ ficp_data/
 DataLakeE7/*.csv
 DataLakeE7/ficp_data/
 
+# Architecture Medallion temporaire
+DataLakeE7/bronze/
+DataLakeE7/silver/
+DataLakeE7/gold/
+DataLakeE7/logs/
+
+# Anciens scripts obsolètes
+DataLakeE7/GenerateProfessionalData.py
+DataLakeE7/MedallionETL.py
+
 # Fichiers de données temporaires
 *.tmp
 *.temp

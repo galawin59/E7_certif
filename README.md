@@ -56,74 +56,104 @@ Resource Group: rg-datalake-ficp (France Central)
 
 ---
 
-## 📁 **STRUCTURE DES FICHIERS**
+## 📁 **STRUCTURE PROFESSIONNELLE DU PROJET**
 
-### **🔧 Scripts de Production**
+### **� Installation Automatique**
 ```
-📂 Déploiement Azure
-├── deploy-azure-sql-complete.ps1    # Déploiement complet Azure SQL
-├── deploy-datalake.ps1              # Déploiement Data Lake
-├── deploy-final.ps1                 # Script de déploiement final
-└── configure-data-factory.ps1       # Configuration Data Factory
-
-📂 Import et ETL  
-├── import-azure-hybrid.py           # Import CSV → Azure SQL Database
-├── orchestrate-complete-pipeline.ps1 # Pipeline ETL complet
-└── validate-e7-certification.ps1     # Validation certification
-
-📂 Schémas et Connexions
-├── azure-schema.sql                 # Schéma des tables Azure SQL
-└── sql-connection-azure.json        # Configuration connexion
+📂 Racine
+├── Install-E7Certification.ps1      # 🔧 Installation automatique complète
+└── README.md                        # 📋 Ce fichier
 ```
 
-### **🗄️ Data Lake (DataLakeE7/)**
+### **📜 Scripts Organisés par Fonction**
 ```
-📂 DataLakeE7
-├── 🥉 bronze/           # Données brutes
-├── 🥈 silver/           # Données transformées  
-├── 🥇 gold/             # KPIs et agrégations
-├── 📝 logs/             # Journaux ETL
-├── 📊 tables_finales/   # Tables consolidées pour import
-├── GenerateProfessionalData.py  # Générateur de données
-└── MedallionETL.py      # Pipeline ETL Medallion
+📂 scripts/
+├── 🚀 deployment/                   # Scripts de déploiement Azure
+│   ├── deploy-azure-sql-complete.ps1
+│   ├── deploy-datalake.ps1
+│   ├── deploy-final.ps1
+│   └── configure-data-factory.ps1
+├── 🔄 data-processing/              # Scripts ETL et import
+│   ├── import-azure-professional.py  # Import CSV → Azure SQL (optimisé)
+│   ├── import-azure-hybrid.py        # Version alternative
+│   ├── orchestrate-complete-pipeline.ps1
+│   ├── create-medallion.ps1
+│   └── explore-datalake.ps1
+└── ✅ validation/                   # Scripts de validation
+    ├── Invoke-E7ValidationComplete.ps1  # Validation professionnelle
+    └── validate-e7-final.ps1            # Validation basique
 ```
 
-### **📚 Documentation**
+### **⚙️ Configuration Centralisée**
 ```
-📂 Documentation
-├── README.md                        # Ce fichier
-├── ARCHITECTURE-MEDALLION-COMPLETE.md # Architecture détaillée
-├── CERTIFICATION-E7-FINAL.md        # Documentation certification
-├── DEPLOYMENT.md                    # Guide de déploiement
-└── GUIDE-POWER-BI.md               # Guide Power BI
+📂 config/
+├── project-config.json              # 📋 Configuration complète du projet
+├── azure-schema.sql                 # 🗃️  Schéma des tables Azure SQL
+└── sql-connection-azure.json        # 🔗 Paramètres de connexion
+```
+
+### **🗄️ Architecture Medallion (DataLakeE7/)**
+```
+📂 DataLakeE7/
+├── 🥉 bronze/                       # Données brutes ingérées
+├── 🥈 silver/                       # Données nettoyées et transformées
+├── 🥇 gold/                         # Agrégations et KPIs métier
+├── 📝 logs/                         # Journaux ETL et monitoring
+├── 📊 tables_finales/               # Tables consolidées pour import
+├── GenerateProfessionalData.py      # 🎲 Générateur de données réalistes
+└── MedallionETL.py                  # ⚙️ Pipeline ETL Medallion
+```
+
+### **📚 Documentation Professionnelle**
+```
+📂 docs/
+├── ARCHITECTURE-MEDALLION-COMPLETE.md  # 🏗️ Architecture technique détaillée
+├── CERTIFICATION-E7-FINAL.md          # 🎯 Documentation de certification
+├── DEPLOYMENT.md                      # 🚀 Guide de déploiement pas à pas
+└── GUIDE-POWER-BI.md                 # 📊 Guide connexion Power BI
+```
+
+### **🔧 Infrastructure et Support**
+```
+📂 Architecture/                     # Documentation architecture
+📂 Infrastructure/                   # Templates et configurations
+📂 .venv/                           # Environnement virtuel Python
+└── .git/                           # Contrôle de version Git
 ```
 
 ---
 
-## 🚀 **DÉPLOIEMENT**
+## 🚀 **DÉPLOIEMENT AUTOMATIQUE**
 
-### **1️⃣ Déployer l'infrastructure Azure**
+### **🎯 Installation Complète en Une Commande**
 ```powershell
-.\deploy-azure-sql-complete.ps1
+# Installation automatique complète (recommandé)
+.\Install-E7Certification.ps1 -Mode all
+
+# Ou par étapes si nécessaire
+.\Install-E7Certification.ps1 -Mode setup      # Prérequis seulement
+.\Install-E7Certification.ps1 -Mode deploy     # Déploiement Azure seulement
+.\Install-E7Certification.ps1 -Mode import     # Import données seulement  
+.\Install-E7Certification.ps1 -Mode validate   # Validation seulement
 ```
 
-### **2️⃣ Créer le schéma des tables**
+### **🔧 Déploiement Manuel (Avancé)**
 ```powershell
+# 1️⃣ Déployer l'infrastructure Azure
+.\scripts\deployment\deploy-azure-sql-complete.ps1
+
+# 2️⃣ Créer le schéma des tables
 Invoke-Sqlcmd -ServerInstance "sql-server-ficp-5647.database.windows.net" `
               -Database "db-ficp-datawarehouse" `
               -Username "ficpadmin" `
               -Password "FicpDataWarehouse2025!" `
-              -InputFile "azure-schema.sql"
-```
+              -InputFile "config\azure-schema.sql"
 
-### **3️⃣ Importer les données**
-```bash
-python import-azure-hybrid.py
-```
+# 3️⃣ Importer les données (version optimisée)
+python scripts\data-processing\import-azure-professional.py
 
-### **4️⃣ Valider la certification**
-```powershell
-.\validate-e7-certification.ps1
+# 4️⃣ Validation complète
+.\scripts\validation\Invoke-E7ValidationComplete.ps1 -Detailed
 ```
 
 ---
