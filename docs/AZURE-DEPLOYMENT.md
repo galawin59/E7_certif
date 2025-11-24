@@ -1,63 +1,56 @@
-# Azure deployment - ADLS Gen2 for FICP lake
+# Azure deployment – Automation for daily FICP lake
 
-This guide deploys an Azure Storage Account (ADLS Gen2) in an existing resource group and uploads the generated CSV files.
+Ce document décrit le déploiement de l’automatisation quotidienne avec Azure Automation (sans Azure Functions), pour générer et déposer chaque jour 3 CSV (consultation, inscription, radiation) dans ADLS Gen2.
 
 Prerequisites:
-- Azure CLI installed and logged in: `az login`
-- Existing resource group name: `rg-datalake-ficp`
-- Generated local data under `ficp_data_lake/` (run `python scripts/generate_ficp_data.py`)
+- Azure CLI installé et connecté: `az login`
+- Resource group: `rg-datalake-ficp`
+- Compte de stockage existant: `stficpdata330940` (container `ficp` créé automatiquement par le runbook si absent)
 
-## 1) Deploy storage account (HNS=true)
-PowerShell:
+## Provisioning en une commande (recommandé)
+Depuis la racine du repo:
 ```
-# From repo root
-powershell -ExecutionPolicy Bypass -File scripts\azure\deploy_storage.ps1 -ResourceGroup rg-datalake-ficp -StorageAccountName stficpdata123456
+powershell -ExecutionPolicy Bypass -File scripts\automation\provision_automation_account_cli.ps1 `
+  -ResourceGroup rg-datalake-ficp `
+  -PreferredLocation northeurope `
+  -AutomationAccountName aa-ficp-daily `
+  -RunbookName ficp-daily `
+  -ScheduleName ficp-daily-0630 `
+  -RunbookPath scripts/automation/runbook_ficp_daily_azure.ps1 `
+  -TimeZone "Central European Standard Time" `
+  -StorageAccountName stficpdata330940 `
+  -ContainerName ficp
 ```
-Notes:
-- Storage account name must be globally unique and lowercase alphanumeric (3-24 chars).
-- Script auto-detects resource group location.
+Ce script effectue:
+1) Création (ou vérification) de l’Automation Account (régions autorisées Free/Student gérées: eastus/eastus2/westus/northeurope/southeastasia/japanwest)
+2) Activation de l’identité managée + rôle "Storage Blob Data Contributor" sur le compte de stockage
+3) Import + publication du runbook `runbook_ficp_daily_azure.ps1`
+4) Création du schedule quotidien 06:30 (CET)
+5) Lien runbook ↔ schedule avec paramètres (StorageAccountName, ContainerName)
 
-## 2) Upload data recursively
+Validation:
 ```
-powershell -ExecutionPolicy Bypass -File scripts\azure\upload_ficp_data.ps1 -ResourceGroup rg-datalake-ficp -StorageAccountName stficpdata123456 -FileSystem ficp -LocalRoot ficp_data_lake
+az automation job list --automation-account-name aa-ficp-daily --resource-group rg-datalake-ficp
 ```
-This creates a filesystem `ficp` and uploads the folder tree under `/`.
-
-## 2-bis) Daily generation and upload (incremental)
-Generate and push only one day's files (three CSVs) to the ADLS Gen2 container:
+Le schedule crée un job chaque jour à 06:30. Vous pouvez aussi déclencher manuellement:
 ```
-powershell -ExecutionPolicy Bypass -File scripts\azure\run_daily_upload.ps1 -ResourceGroup rg-datalake-ficp -StorageAccountName stficpdata123456 -FileSystem ficp -Date (Get-Date -Format 'yyyy-MM-dd') -Overwrite
-```
-Notes:
-- The daily generator computes scheduled inscriptions/radiations deterministically from existing history, ensuring business rules and idempotence.
-- Use `-Overwrite` to safely re-run the same day.
-
-Optional: Schedule on Windows Task Scheduler (example 06:30 daily):
-```
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$PWD\scripts\azure\run_daily_upload.ps1`" -ResourceGroup rg-datalake-ficp -StorageAccountName stficpdata123456 -FileSystem ficp -Date (Get-Date -Format 'yyyy-MM-dd') -Overwrite"
-$trigger = New-ScheduledTaskTrigger -Daily -At 6:30am
-Register-ScheduledTask -TaskName "FICP-Daily-Upload" -Action $action -Trigger $trigger -Description "Generate and upload daily FICP files"
+az automation runbook start --automation-account-name aa-ficp-daily --resource-group rg-datalake-ficp `
+  --name ficp-daily --parameters StorageAccountName=stficpdata330940 ContainerName=ficp Overwrite=true
 ```
 
-## 3) Cleanup (optional)
-```
-powershell -ExecutionPolicy Bypass -File scripts\azure\cleanup_storage.ps1 -ResourceGroup rg-datalake-ficp -StorageAccountName stficpdata123456 -FileSystem ficp
-```
-This deletes the filesystem (container) and all uploaded files.
+## Détails du runbook
+Le runbook PowerShell génère les CSV du jour de manière déterministe (hash -> délais/probas), écrit localement puis uploade vers `stficpdata330940/f icp` via Az.Storage. En Automation il s’authentifie via identité managée.
 
-## 4) Azure Function (daily generation on Azure)
-The repo includes a Python Azure Function (Timer trigger) that generates the 3 CSVs daily and writes directly to your ADLS Gen2 container using managed identity.
+Paramètres utiles:
+- `TargetDate` (yyyy-MM-dd) pour rattrapage
+- `Overwrite` pour régénérer un jour existant
+- `SkipUpload` pour un test logique sans envoi
 
-Deploy it with:
-```
-powershell -ExecutionPolicy Bypass -File scripts\azure\deploy_ficp_daily_function.ps1 -ResourceGroup rg-datalake-ficp -Location francecentral -FunctionAppName ficp-daily-func-<random> -DataLakeStorageAccountName stficpdata123456 -ContainerName ficp
-```
-Notes:
-- Schedule is 06:30 daily (Romance Standard Time). Change in `azure_function_ficp_daily/ficp_daily/function.json` if needed.
-- App settings: TARGET_STORAGE_ACCOUNT, TARGET_CONTAINER, and WEBSITE_TIME_ZONE are set by the script.
-- Code lives under `azure_function_ficp_daily/` with `requirements.txt`. Zip deploy is used; the platform installs deps automatically.
+## Anciennes approches (legacy)
+- Azure Function (Timer): supprimée (problèmes de trigger)
+- Logic App: non nécessaire; la planification est assurée par le schedule d’Automation
 
-## Mapping to requirements
-- ADLS Gen2 with hierarchical namespace -> Data lake
-- Folder structure preserved -> consultation/inscription/radiation by date
-- Ready for Power BI via Azure Storage connector or Synapse/SQL external tables (optional)
+## Dépannage rapide
+- Erreur de région à la création de l’Automation Account: le script bascule automatiquement vers une région autorisée.
+- Droits Blob manquants: vérifier IAM du compte de stockage (rôle Storage Blob Data Contributor) sur l’identité du compte Automation.
+- Fichiers non visibles: vérifier l’horaire local/zone, l’historique des jobs Automation et les messages du runbook.
