@@ -106,22 +106,35 @@ Cette section te sert de guide pour ton dossier E7. Tu peux imprimer ce plan et 
 - **Capture 1** – *Arborescence ADLS* :
   - Portail Azure → compte de stockage `stficpdata330940` → Explorateur de stockage → conteneur `ficp` montrant les dossiers `consultation/`, `inscription/`, `radiation/`.
 <img width="1867" height="497" alt="image" src="https://github.com/user-attachments/assets/28524d06-f531-4e97-bd87-72464b85480e" />
+<img width="962" height="825" alt="image" src="https://github.com/user-attachments/assets/0b93c7a3-07c1-4baa-a5f9-40e80e44c4b4" />
+
 
 ### 2. Génération quotidienne (Azure Automation)
 - **Texte à mettre** :
   - "La génération quotidienne est orchestrée par un runbook PowerShell dans Azure Automation (`aa-ficp-daily`, runbook `ficp-daily`). Un schedule déclenche le runbook chaque jour à 06:30 (CET), sans intervention utilisateur ni poste allumé."
 - **Capture 2** – *Automation Account* :
   - Vue d'ensemble de `aa-ficp-daily` avec la liste des runbooks et le runbook `ficp-daily` visible.
+ <img width="1853" height="519" alt="image" src="https://github.com/user-attachments/assets/497e6ff6-ca67-4308-b0ca-aae0badd92fa" />
+
+
+
 - **Capture 3** – *Détail du runbook* :
   - Onglet "Runbooks" → `ficp-daily` → onglet "Edit" ou "View" montrant rapidement le début du script (nom du fichier `runbook_ficp_daily_azure.ps1`).
+ 
+<img width="1866" height="960" alt="image" src="https://github.com/user-attachments/assets/8fd49e25-c3d5-4669-af07-b9616a060e4d" />
+
 - **Capture 4** – *Schedule quotidien* :
   - Sur `aa-ficp-daily`, onglet "Schedules" montrant le schedule lié au runbook (heure, récurrence quotidienne).
+<img width="1867" height="806" alt="image" src="https://github.com/user-attachments/assets/2679e986-e8de-4a4b-9c82-58709a10d5cf" />
 
 ### 3. Suivi des traitements (résumés SUMMARY)
 - **Texte à mettre** :
   - "Chaque exécution du runbook produit des résumés standardisés dans les logs (SUMMARY LOCAL / SIZES / REMOTE / DURATION) permettant de vérifier rapidement le volume généré, la taille totale et la durée du traitement."
 - **Capture 5** – *Historique des jobs* :
   - Azure Automation → `aa-ficp-daily` → "Jobs" avec quelques exécutions `Completed`.
+ <img width="1854" height="667" alt="image" src="https://github.com/user-attachments/assets/be09be48-fc14-4e68-a93d-8c394dcd4dc3" />
+
+    
 - **Capture 6** – *Détail d'un job* :
   - Détail d'un job → onglet "Logs" / "Output" avec les lignes du type :
     - `SUMMARY LOCAL 2025-.. -> consultations=... inscriptions=... radiations=...`
