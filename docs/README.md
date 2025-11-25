@@ -170,7 +170,8 @@ Cette section te sert de guide pour ton dossier E7. Tu peux imprimer ce plan et 
     - les colonnes détectées (statut_ficp, ficp, date_radiation, etc.).
     <img width="1870" height="546" alt="image" src="https://github.com/user-attachments/assets/6acc6077-f000-4421-aa77-c56fa145f9ed" />
     <img width="1855" height="567" alt="image" src="https://github.com/user-attachments/assets/4ac95014-89ec-463c-b13c-bd1cc5c8ade7" />
-    <img width="1861" height="575" alt="image" src="https://github.com/user-attachments/assets/9ebbcc5a-0bf8-4094-9ed7-8fa8bc605c51" />
+    <img width="1871" height="561" alt="image" src="https://github.com/user-attachments/assets/f023a262-b7c5-47ff-8d3a-2a5a82200b80" />
+
 
 
 
