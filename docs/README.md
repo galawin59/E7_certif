@@ -105,6 +105,7 @@ Cette section te sert de guide pour ton dossier E7. Tu peux imprimer ce plan et 
   - "Le data lake FICP est hébergé sur Azure Data Lake Storage Gen2, avec un conteneur unique `ficp` partitionné en trois zones métier : `consultation`, `inscription`, `radiation`. Les fichiers sont datés au format `YYYY-MM-DD.csv`."
 - **Capture 1** – *Arborescence ADLS* :
   - Portail Azure → compte de stockage `stficpdata330940` → Explorateur de stockage → conteneur `ficp` montrant les dossiers `consultation/`, `inscription/`, `radiation/`.
+<img width="1867" height="497" alt="image" src="https://github.com/user-attachments/assets/28524d06-f531-4e97-bd87-72464b85480e" />
 
 ### 2. Génération quotidienne (Azure Automation)
 - **Texte à mettre** :
