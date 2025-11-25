@@ -139,26 +139,40 @@ Cette section te sert de guide pour ton dossier E7. Tu peux imprimer ce plan et 
   - Détail d'un job → onglet "Logs" / "Output" avec les lignes du type :
     - `SUMMARY LOCAL 2025-.. -> consultations=... inscriptions=... radiations=...`
     - `SUMMARY REMOTE ...`
+<img width="1854" height="613" alt="image" src="https://github.com/user-attachments/assets/667eb3c9-803b-46ea-880e-db88a7a598eb" />
 
 ### 4. Données générées (exemple concret)
 - **Texte à mettre** :
   - "Les fichiers sont générés de manière déterministe selon des règles métier (délais PAIEMENT, probabilité de radiation, etc.). Un exemple de fichier permet d’illustrer la structure réelle des données."
 - **Capture 7** – *Aperçu CSV* :
   - Dans le portail ou dans VS Code, un extrait de `consultation/2025-03-15.csv` (quelques lignes) montrant les colonnes et valeurs.
+<img width="665" height="600" alt="image" src="https://github.com/user-attachments/assets/37dbe75b-a321-42f4-99ac-777066d2c328" />
+<img width="606" height="598" alt="image" src="https://github.com/user-attachments/assets/c86a6182-26cb-4cde-b19c-0c531246cd9d" />
+<img width="501" height="614" alt="image" src="https://github.com/user-attachments/assets/16f02137-26be-4c91-8abe-833e2b3e396e" />
+
 
 ### 5. Catalogue et gouvernance (Microsoft Purview)
 - **Texte à mettre** :
   - "Un compte Microsoft Purview (`pv-ficp-e7`) est connecté au data lake `stficpdata330940`. Un scan Purview a été configuré pour analyser le conteneur `ficp` et alimenter automatiquement un catalogue technique des datasets FICP (consultation, inscription, radiation). L'accès au stockage est sécurisé via Azure Key Vault et une identité managée dédiée au compte Purview."
 - **Capture 8** – *Source de données Purview* :
   - Governance Portal → Data sources → source `FICP-DataLake` avec au moins un scan `Succeeded` visible.
+    <img width="1867" height="717" alt="image" src="https://github.com/user-attachments/assets/8d33a3b8-4aec-4f58-b75a-03f1d854a48e" />
+
 - **Capture 9** – *Résultat de scan* :
   - Écran récapitulatif de la source montrant le dernier scan (nom, date, statut Succeeded).
 - **Capture 10** – *Catalogue par collection* :
   - Data catalog → Browse → collection `pv-ficp-e7` montrant le nombre total d'assets (comme ta capture avec "Assets = 9").
+    <img width="1865" height="405" alt="image" src="https://github.com/user-attachments/assets/c25fc527-773b-4e24-987e-8d01f2ff0499" />
+
 - **Capture 11** – *Détails d'un dataset métier* :
   - Data catalog → recherche `ficp radiation` → ouvrir l'asset `radiation` (Resource Set) pour afficher :
     - le chemin `https://stficpdata330940.dfs.core.windows.net/ficp/radiation/{Year}-{Month}-{Day}.csv` ;
     - les colonnes détectées (statut_ficp, ficp, date_radiation, etc.).
+    <img width="1870" height="546" alt="image" src="https://github.com/user-attachments/assets/6acc6077-f000-4421-aa77-c56fa145f9ed" />
+    <img width="1855" height="567" alt="image" src="https://github.com/user-attachments/assets/4ac95014-89ec-463c-b13c-bd1cc5c8ade7" />
+    <img width="1861" height="575" alt="image" src="https://github.com/user-attachments/assets/9ebbcc5a-0bf8-4094-9ed7-8fa8bc605c51" />
+
+
 
 ### 6. Synthèse gouvernance (C20–C21)
 - **Texte à mettre** :
@@ -170,5 +184,6 @@ Cette section te sert de guide pour ton dossier E7. Tu peux imprimer ce plan et 
 - **Capture 12** – *Vue d'ensemble architecture* (optionnelle mais recommandée) :
   - Un schéma (PowerPoint ou dessiné à la main) montrant :
     - "Runbook Azure Automation" → "Data Lake ADLS Gen2 (ficp)" → "Microsoft Purview (catalogue)".
+<img width="545" height="446" alt="image" src="https://github.com/user-attachments/assets/32ebefef-4eda-431c-bcbb-27a4630a8739" />
 
 Avec ces 10–12 captures et les textes associés, tu peux raconter l’ensemble du projet sans avoir besoin d’un accès en direct à Azure le jour de la soutenance.
