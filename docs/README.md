@@ -44,19 +44,117 @@ az automation runbook start --automation-account-name aa-ficp-daily --resource-g
   --parameters StorageAccountName=stficpdata330940 ContainerName=ficp Overwrite=true
 ```
 
-## Générer les données
-PowerShell:
-```
-python scripts\generate_ficp_data.py
+## Exploitation quotidienne (Azure Automation)
+
+### Relancer manuellement un jour précis
+
+Dans Cloud Shell ou ton terminal (après `az login`), pour regénérer les fichiers d'une date donnée et les pousser dans le data lake :
+
+```powershell
+$d = '2025-11-23'  # date cible au format YYYY-MM-DD
+az automation runbook start `
+  --automation-account-name aa-ficp-daily `
+  --resource-group rg-datalake-ficp `
+  --name ficp-daily `
+  --parameters TargetDate=$d
 ```
 
-## Lancer les tests
-PowerShell:
+Le runbook va :
+- générer 3 fichiers CSV dans le répertoire temporaire de la VM d'exécution ;
+- uploader les 3 fichiers vers le compte de stockage `stficpdata330940`, conteneur `ficp` ;
+- écrire dans les logs les résumés suivants :
+  - `SUMMARY LOCAL <date> -> consultations=... inscriptions=... radiations=... size_bytes_total=...`
+  - `SUMMARY SIZES <date> -> consult=... inscr=... rad=...`
+  - `SUMMARY REMOTE <date> -> consultations=... inscriptions=... radiations=... size_bytes_total=...`
+  - `SUMMARY DURATION <date> -> seconds=...`
+
+### Vérifier les derniers jobs et résumés
+
+Lister les derniers jobs Automation :
+
+```powershell
+az automation job list `
+  --automation-account-name aa-ficp-daily `
+  --resource-group rg-datalake-ficp `
+  --query "[].{name:name, status:status, start:startTime, end:endTime}" -o table
 ```
-python -m pytest -q
+
+Récupérer les résumés pour un job précis via l’API REST :
+
+```powershell
+$subId  = az account show --query id -o tsv
+$jobRes = 'REPLACE_WITH_JOB_RESOURCE_NAME'  # ex: 10046919-4264-43ef-89e0-e4f0845f36c6
+$base   = "https://management.azure.com/subscriptions/$subId/resourceGroups/rg-datalake-ficp/providers/Microsoft.Automation/automationAccounts/aa-ficp-daily/jobs/$jobRes"
+
+az rest --method get --url "$base/streams?api-version=2023-11-01"
 ```
+
+Dans la réponse JSON, les champs `properties.summary` des streams de type `Output` contiennent les lignes `SUMMARY ...` décrivant le volume généré, la taille totale et la durée.
 
 ## Gouvernance (extrait)
 - RGPD: cle_bdf pseudonymisées
 - Cycle de vie: fichiers quotidiens immutables, régénération idempotente
 - Accès: lecture seule pour BI, écriture via processus contrôlé
+
+## Rapport E7 Bloc 4 – Plan des captures d'écran
+
+Cette section te sert de guide pour ton dossier E7. Tu peux imprimer ce plan et simplement insérer les captures d'écran demandées au bon endroit.
+
+### 1. Architecture globale du data lake
+- **Texte à mettre** :
+  - "Le data lake FICP est hébergé sur Azure Data Lake Storage Gen2, avec un conteneur unique `ficp` partitionné en trois zones métier : `consultation`, `inscription`, `radiation`. Les fichiers sont datés au format `YYYY-MM-DD.csv`."
+- **Capture 1** – *Arborescence ADLS* :
+  - Portail Azure → compte de stockage `stficpdata330940` → Explorateur de stockage → conteneur `ficp` montrant les dossiers `consultation/`, `inscription/`, `radiation/`.
+
+### 2. Génération quotidienne (Azure Automation)
+- **Texte à mettre** :
+  - "La génération quotidienne est orchestrée par un runbook PowerShell dans Azure Automation (`aa-ficp-daily`, runbook `ficp-daily`). Un schedule déclenche le runbook chaque jour à 06:30 (CET), sans intervention utilisateur ni poste allumé."
+- **Capture 2** – *Automation Account* :
+  - Vue d'ensemble de `aa-ficp-daily` avec la liste des runbooks et le runbook `ficp-daily` visible.
+- **Capture 3** – *Détail du runbook* :
+  - Onglet "Runbooks" → `ficp-daily` → onglet "Edit" ou "View" montrant rapidement le début du script (nom du fichier `runbook_ficp_daily_azure.ps1`).
+- **Capture 4** – *Schedule quotidien* :
+  - Sur `aa-ficp-daily`, onglet "Schedules" montrant le schedule lié au runbook (heure, récurrence quotidienne).
+
+### 3. Suivi des traitements (résumés SUMMARY)
+- **Texte à mettre** :
+  - "Chaque exécution du runbook produit des résumés standardisés dans les logs (SUMMARY LOCAL / SIZES / REMOTE / DURATION) permettant de vérifier rapidement le volume généré, la taille totale et la durée du traitement."
+- **Capture 5** – *Historique des jobs* :
+  - Azure Automation → `aa-ficp-daily` → "Jobs" avec quelques exécutions `Completed`.
+- **Capture 6** – *Détail d'un job* :
+  - Détail d'un job → onglet "Logs" / "Output" avec les lignes du type :
+    - `SUMMARY LOCAL 2025-.. -> consultations=... inscriptions=... radiations=...`
+    - `SUMMARY REMOTE ...`
+
+### 4. Données générées (exemple concret)
+- **Texte à mettre** :
+  - "Les fichiers sont générés de manière déterministe selon des règles métier (délais PAIEMENT, probabilité de radiation, etc.). Un exemple de fichier permet d’illustrer la structure réelle des données."
+- **Capture 7** – *Aperçu CSV* :
+  - Dans le portail ou dans VS Code, un extrait de `consultation/2025-03-15.csv` (quelques lignes) montrant les colonnes et valeurs.
+
+### 5. Catalogue et gouvernance (Microsoft Purview)
+- **Texte à mettre** :
+  - "Un compte Microsoft Purview (`pv-ficp-e7`) est connecté au data lake `stficpdata330940`. Un scan Purview a été configuré pour analyser le conteneur `ficp` et alimenter automatiquement un catalogue technique des datasets FICP (consultation, inscription, radiation). L'accès au stockage est sécurisé via Azure Key Vault et une identité managée dédiée au compte Purview."
+- **Capture 8** – *Source de données Purview* :
+  - Governance Portal → Data sources → source `FICP-DataLake` avec au moins un scan `Succeeded` visible.
+- **Capture 9** – *Résultat de scan* :
+  - Écran récapitulatif de la source montrant le dernier scan (nom, date, statut Succeeded).
+- **Capture 10** – *Catalogue par collection* :
+  - Data catalog → Browse → collection `pv-ficp-e7` montrant le nombre total d'assets (comme ta capture avec "Assets = 9").
+- **Capture 11** – *Détails d'un dataset métier* :
+  - Data catalog → recherche `ficp radiation` → ouvrir l'asset `radiation` (Resource Set) pour afficher :
+    - le chemin `https://stficpdata330940.dfs.core.windows.net/ficp/radiation/{Year}-{Month}-{Day}.csv` ;
+    - les colonnes détectées (statut_ficp, ficp, date_radiation, etc.).
+
+### 6. Synthèse gouvernance (C20–C21)
+- **Texte à mettre** :
+  - "Le couple Automation + Purview illustre la mise en conditions opérationnelles d’un data lake FICP :
+    - alimentation quotidienne automatisée et vérifiable (résumés SUMMARY, logs de jobs) ;
+    - stockage structuré et partitionné par flux métier ;
+    - gouvernance via Microsoft Purview (catalogue centralisé des datasets, métadonnées techniques, historisation des scans) ;
+    - sécurisation des accès par rôles RBAC et secrets gérés dans Key Vault."
+- **Capture 12** – *Vue d'ensemble architecture* (optionnelle mais recommandée) :
+  - Un schéma (PowerPoint ou dessiné à la main) montrant :
+    - "Runbook Azure Automation" → "Data Lake ADLS Gen2 (ficp)" → "Microsoft Purview (catalogue)".
+
+Avec ces 10–12 captures et les textes associés, tu peux raconter l’ensemble du projet sans avoir besoin d’un accès en direct à Azure le jour de la soutenance.
